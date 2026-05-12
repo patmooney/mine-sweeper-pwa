@@ -164,7 +164,7 @@ const App: Component = () => {
             <option value="30">Large 30x30</option>
             <option value="50">HUGE 50x50</option>
           </select>
-          <select class="bg-gray-700 p-3" value={mineDif().toString()} onChange={(e) => setMineDif(parseInt(e.target.value))}>
+          <select class="bg-gray-700 p-3" value={mineDif().toString()} onChange={(e) => { console.log(e.target.value); setMineDif(parseFloat(e.target.value)) }}>
             <option value="0.1">Easy 10%</option>
             <option value="0.15">Medium 15%</option>
             <option value="0.2">Hard 20%</option>
