@@ -28,13 +28,15 @@ export const paintRect = (ctx: CanvasRenderingContext2D, width: number, idx: num
     ctx.textBaseline = "middle";
     ctx.strokeStyle = "#778877";
 
+    let text = c.isVisible && c.adjacent ? c.adjacent.toString() : undefined;
 
     if (c.isVisible) {
         ctx.fillStyle = "green";
     } else if (showMines && c.isMine) {
         ctx.fillStyle = "red";
     } else if (c.mark === "mine") {
-        ctx.fillStyle = "blue";
+        text = "⚑";
+        ctx.fillStyle = "#99aa99";
     } else {
         ctx.fillStyle = "#99aa99";
     }
@@ -42,9 +44,9 @@ export const paintRect = (ctx: CanvasRenderingContext2D, width: number, idx: num
     ctx.fillRect(...rect);
     ctx.strokeRect(...rect);
 
-    if (c.isVisible && c.adjacent) {
+    if (text) {
         ctx.fillStyle = "black";
-        ctx.fillText(c.adjacent.toString(), (x * RECT_WIDTH) + RECT_WIDTH / 2, ((y * RECT_WIDTH) + RECT_WIDTH / 2) + 1);
+        ctx.fillText(text, (x * RECT_WIDTH) + RECT_WIDTH / 2, ((y * RECT_WIDTH) + RECT_WIDTH / 2) + 1);
     }
 };
 

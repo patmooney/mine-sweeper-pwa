@@ -14,8 +14,8 @@ const App: Component = () => {
   let gameTimer: number | undefined;
 
   const [size, setSize] = createSignal<number>(20);
-  const [mines, setMines] = createSignal<number>(20 * 5);
-  const [mineDif, setMineDif] = createSignal<number>(4);
+  const [mines, setMines] = createSignal<number>(400 * 0.15);
+  const [mineDif, setMineDif] = createSignal<number>(0.15);
   const [startTime, setStartTime] = createSignal<number>();
   const [elapsed, setElapsed] = createSignal<number>();
 
@@ -53,7 +53,7 @@ const App: Component = () => {
     batch(() => {
       clearInterval(gameTimer);
       setStartTime(undefined);
-      setMines(Math.floor((size() * size()) / mineDif()));
+      setMines(Math.floor((size() * size()) * mineDif()));
       map = undefined;
     })
   };
@@ -100,6 +100,7 @@ const App: Component = () => {
     }
 
     if (!map) {
+      markAsMine = false;
       setStartTime(Date.now());
       setElapsed(0);
       gameTimer = setInterval(() => setElapsed(Date.now() - (startTime() ?? 0)), 1000)
@@ -164,10 +165,10 @@ const App: Component = () => {
             <option value="50">HUGE 50x50</option>
           </select>
           <select class="bg-gray-700 p-3" value={mineDif().toString()} onChange={(e) => setMineDif(parseInt(e.target.value))}>
-            <option value="5">Easy</option>
-            <option value="4">Medium</option>
-            <option value="3">Hard</option>
-            <option value="2">Extreme</option>
+            <option value="0.1">Easy 10%</option>
+            <option value="0.15">Medium 15%</option>
+            <option value="0.2">Hard 20%</option>
+            <option value="0.3">Extreme 30%</option>
           </select>
         </div>
         <div ref={b} class="p-2 m-5 border rounded w-1/2 text-center cursor-pointer relative w-full">
