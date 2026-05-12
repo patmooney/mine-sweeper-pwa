@@ -1,29 +1,40 @@
 import { Grid, NestedArray, toXY, Cell } from "./map";
 
-const RECT_WIDTH = 20;
-
 export const drawMap = (map: Grid, c: HTMLCanvasElement, showMines?: boolean) => {
     const ctx = c.getContext("2d");
     if (!ctx) {
         return;
     }
 
-    ctx.strokeStyle = "#778877";
-    ctx.textAlign = "center";
-    ctx.font = "16px sans";
-    ctx.textBaseline = "middle";
-
     map.cells.forEach((c, idx) => paintRect(ctx, map.width, idx, c, showMines));
 };
 
+export const paintSingle = (map: Grid, c: HTMLCanvasElement, idx: number) => {
+    const ctx = c.getContext("2d");
+    const cell = map.cells.at(idx);
+    if (!ctx || !cell) {
+        return;
+    }
+    paintRect(ctx, map.width, idx, cell);
+}
+
 export const paintRect = (ctx: CanvasRenderingContext2D, width: number, idx: number, c: Cell, showMines?: boolean) => {
     const [x, y] = toXY(width, idx);
+    const RECT_WIDTH = ctx.canvas.width / width;
     const rect: [number, number, number, number] = [x * RECT_WIDTH, y * RECT_WIDTH, RECT_WIDTH, RECT_WIDTH];
+
+    ctx.textAlign = "center";
+    ctx.font = "16px sans";
+    ctx.textBaseline = "middle";
+    ctx.strokeStyle = "#778877";
+
 
     if (c.isVisible) {
         ctx.fillStyle = "green";
     } else if (showMines && c.isMine) {
         ctx.fillStyle = "red";
+    } else if (c.mark === "mine") {
+        ctx.fillStyle = "blue";
     } else {
         ctx.fillStyle = "#99aa99";
     }
@@ -37,14 +48,15 @@ export const paintRect = (ctx: CanvasRenderingContext2D, width: number, idx: num
     }
 };
 
-
 export const drawStart = (width: number, c: HTMLCanvasElement) => {
     const ctx = c.getContext("2d");
     if (!ctx) {
         return;
     }
+    ctx.clearRect(0, 0, c.width, c.height);
     ctx.strokeStyle = "#778877";
     ctx.fillStyle = "#99aa99";
+    const RECT_WIDTH = ctx.canvas.width / width;
     for (let x = 0; x < width; x++) {
         for (let y = 0; y < width; y++) {
             const rect: [number, number, number, number] = [x * RECT_WIDTH, y * RECT_WIDTH, RECT_WIDTH, RECT_WIDTH];
@@ -63,13 +75,31 @@ export const animateReveal = (c: HTMLCanvasElement, map: Grid, toReveal: NestedA
         return;
     }
     toReveal.filter((el) => !Array.isArray(el)).forEach((idx) => paintRect(ctx, map.width, idx as number, map.cells[idx as number]));
-    setTimeout(() => {
+    requestAnimationFrame(() => {
         toReveal.filter((el) => Array.isArray(el)).forEach((el) => {
             animateReveal(c, map, el, ctx);
         });
-    }, 20);
+    });
 };
 
-export const toCellCoord = (x: number, y: number): [number, number] => {
+export const toCellCoord = (c: HTMLCanvasElement, width: number, x: number, y: number): [number, number] => {
+    const RECT_WIDTH = c.width / width;
     return [Math.floor(x/RECT_WIDTH), Math.floor(y/RECT_WIDTH)];
+};
+
+export const winningMessage = (map: Grid, c: HTMLCanvasElement, text: string) => {
+    const ctx = c.getContext("2d");
+    if (!ctx) {
+        return;
+    }
+
+    const RECT_WIDTH = ctx.canvas.width / map.width;
+    ctx.textAlign = "center";
+    ctx.font = "48px sans";
+    ctx.textBaseline = "middle";
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+    ctx.fillRect(0, 0, map.width * RECT_WIDTH, map.width * RECT_WIDTH);
+    ctx.fillStyle = "yellow";
+    ctx.fillText(text, (map.width * RECT_WIDTH) / 2, (map.width * RECT_WIDTH) / 2);
 };
