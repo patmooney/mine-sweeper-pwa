@@ -1,6 +1,6 @@
 import { batch, Component, createMemo, createSignal, onMount } from 'solid-js'
 import { genMap, Grid, reveal, toIdx } from './utils/map';
-import { animateReveal, drawMap, drawStart, paintSingle, toCellCoord, winningMessage } from './utils/graphics';
+import { RECT_WIDTH, Renderer } from './utils/graphics';
 
 const App: Component = () => {
   let c: HTMLCanvasElement | undefined;
@@ -8,8 +8,10 @@ const App: Component = () => {
 
   let mouseEvent: MouseEvent | undefined;
   let map: Grid | undefined;
+  let gfx: Renderer | undefined;
   let newGameTime: number | undefined;
   let canvasTime: number | undefined;
+  let mouseDown: [number, number] | undefined;
   
   let gameTimer: number | undefined;
 
@@ -21,17 +23,30 @@ const App: Component = () => {
 
   onMount(() => {
     if (c) {
-      c.width = Math.min(window.innerWidth, 420) * 0.95;
+      c.width = Math.min(window.innerWidth, 1024) * 0.95;
       c.height = window.innerHeight * 0.85;
+      gfx = new Renderer(c);
       confirmNewGame();
       c.addEventListener("mousedown", (e) => { e.preventDefault(); onCanvasMouseDown(e); })
+      c.addEventListener("mousemove", (e) => { e.preventDefault(); onCanvasMouseMove(e); })
       c.addEventListener("mouseup", (e) => { e.preventDefault(); onCanvasConfirm(); });
+      c.addEventListener("wheel", (e) => { e.preventDefault(); onZoom(e); });
     }
     if (b) {
       b.addEventListener("mousedown", (e) => { e.preventDefault(); onNewGame(); });
       b.addEventListener("mouseup", (e) => { e.preventDefault(); cancelNewGame(); });
     }
   });
+
+  const onZoom = (e: WheelEvent) => {
+    if (gfx) {
+      const deltaNorm = - Math.max(-1, Math.min(1, e.deltaY));
+      const deltaScale = 0.1 * deltaNorm;
+      gfx.scale = Math.min(10, Math.max(1, gfx.scale + deltaScale));
+      gfx.offset = [gfx.offset[0] - (RECT_WIDTH * deltaScale), gfx.offset[1] - (deltaScale * RECT_WIDTH)];
+      gfx.drawMap();
+    }
+  };
 
   const onNewGame = () => {
     b?.querySelector("div")?.classList.add("w-full", "duration-1000", "transition-[width]");
@@ -41,7 +56,7 @@ const App: Component = () => {
     cancelNewGame();
     if (c) {
       onGameEnd();
-      drawStart(size(), c);
+      gfx?.drawStart(size(), c);
     }
   };
   const cancelNewGame = () => {
@@ -62,8 +77,29 @@ const App: Component = () => {
     mouseEvent = e;
     if (canvasTime) {
       clearTimeout(canvasTime);
+      canvasTime = undefined;
     }
+    mouseDown = [e.clientX, e.clientY];
     canvasTime = setTimeout(() => onCanvasConfirm(true), 500);
+  };
+
+  const onCanvasMouseMove = (e: MouseEvent) => {
+    if (!mouseDown || !gfx) {
+      return;
+    }
+    const dX = e.clientX - mouseDown[0];
+    const dY = e.clientY - mouseDown[1];
+    if (canvasTime) {
+      if (Math.abs(dX) > 20 || Math.abs(dY) > 20) {
+        clearTimeout(canvasTime);
+        canvasTime = undefined;
+      } else {
+        return;
+      }
+    }
+    mouseDown = [e.clientX, e.clientY];
+    gfx.offset = [gfx.offset[0] + (dX / gfx.scale), gfx.offset[1] + (dY / gfx.scale)];
+    gfx.drawMap();
   };
 
   const niceTime = createMemo(() => {
@@ -84,8 +120,10 @@ const App: Component = () => {
   });
 
   const onCanvasConfirm = (markAsMine?: boolean) => {
+    mouseDown = undefined;
     if (canvasTime) {
       clearTimeout(canvasTime);
+      canvasTime = undefined;
     }
     if (!mouseEvent || !c) {
       return;
@@ -94,7 +132,12 @@ const App: Component = () => {
     const [x, y] = [mouseEvent.clientX, mouseEvent.clientY];
     mouseEvent = undefined;
     const box = c.getBoundingClientRect();
-    const coord = toCellCoord(c, MAP_WIDTH, x - box.left, y - box.top);
+
+    if (!gfx) {
+      return;
+    }
+
+    const coord = gfx.toCellCoord(x - box.left, y - box.top);
     if (coord[0] < 0 || coord[1] < 0 || coord[0] >= MAP_WIDTH || coord[1] >= MAP_WIDTH) {
       return;
     }
@@ -105,7 +148,8 @@ const App: Component = () => {
       setElapsed(0);
       gameTimer = setInterval(() => setElapsed(Date.now() - (startTime() ?? 0)), 1000)
       map = genMap(MAP_WIDTH, mines(), coord[0], coord[1]);
-      drawMap(map, c);
+      gfx.setMap(map);
+      gfx.drawMap();
     }
 
     if (c && map) {
@@ -124,31 +168,31 @@ const App: Component = () => {
         // unmark after long press
         cell.mark = undefined;
         setMines(mines() + 1);
-        paintSingle(map, c, idx);
+        gfx.paintSingle(idx);
         return;
       }
 
       if (markAsMine) {
         // mark after long press
         cell.mark = "mine";
-        paintSingle(map, c, idx);
+        gfx.paintSingle(idx);
         setMines(mines() - 1);
         return;
       }
 
       if (cell?.isMine) {
         // BOOM
-        drawMap(map, c, true);
+        gfx.drawMap(true);
         onGameEnd();
         return;
       }
 
       // Normal tile, can reveal safely
-      animateReveal(c, map, reveal(map, ...coord));
+      gfx.animateReveal(reveal(map, ...coord));
       const mineCount = map.cells.filter((c) => c.isMine).length;
       const revealed = map.cells.filter((c) => !c.isMine && c.isVisible).length;
       if ((mineCount+revealed) === map.cells.length) {
-        winningMessage(map, c, "Winner!");
+        gfx.winningMessage(map, c, "Winner!");
         onGameEnd();
       }
     }
@@ -180,7 +224,7 @@ const App: Component = () => {
         <div>Mines: {mines()}</div>
         <div>Time: {niceTime().join(":")}</div>
       </div>
-      <div class="overflow-auto">
+      <div class="overflow-none">
         <canvas ref={c} class="" />
       </div>
     </div>
