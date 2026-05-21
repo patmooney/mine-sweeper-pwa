@@ -1,10 +1,15 @@
-import { batch, Component, createMemo, createSignal, onMount } from 'solid-js'
+import { batch, Component, createMemo, createSignal, onMount, Show, useContext } from 'solid-js'
 import { genMap, Grid, reveal, toIdx } from './utils/map';
 import { RECT_WIDTH, Renderer } from './utils/graphics';
+import { Score } from './Score';
+import { GameData } from './data';
+import { toTimeString } from './utils/time';
 
 const App: Component = () => {
   let c: HTMLCanvasElement | undefined;
   let b: HTMLDivElement | undefined;
+
+  const { onAddGame } = useContext(GameData) ?? {};
 
   let mouseEvent: MouseEvent | Touch | undefined;
   let map: Grid | undefined;
@@ -21,6 +26,7 @@ const App: Component = () => {
   const [mineDif, setMineDif] = createSignal<number>(0.15);
   const [startTime, setStartTime] = createSignal<number>();
   const [elapsed, setElapsed] = createSignal<number>();
+  const [showScore, setShowScore] = createSignal<boolean>(false);
 
   onMount(() => {
     if (c) {
@@ -38,7 +44,9 @@ const App: Component = () => {
     }
     if (b) {
       b.addEventListener("mousedown", (e) => { e.preventDefault(); onNewGame(); });
+      b.addEventListener("touchstart", (e) => { e.preventDefault(); onNewGame(); });
       b.addEventListener("mouseup", (e) => { e.preventDefault(); cancelNewGame(); });
+      b.addEventListener("touchend", (e) => { e.preventDefault(); cancelNewGame(); });
     }
   });
 
@@ -139,28 +147,16 @@ const App: Component = () => {
         return;
       }
     }
+    if (!map) {
+      return;
+    }
     mouseDown = [x, y];
     mouseEvent = undefined;
-    gfx.offset = [gfx.offset[0] + (dX / gfx.scale), gfx.offset[1] + (dY / gfx.scale)];
+    gfx.offset = [gfx.offset[0] + dX, gfx.offset[1] + dY];
     gfx.drawMap();
   };
 
-  const niceTime = createMemo(() => {
-    let t = elapsed();
-    if (!t) {
-      return ["00", "00", "00"];
-    }
-    const hours = Math.floor(t / (1000 * 60 * 60));
-    t -= (hours * (1000 * 60 * 60));
-    const minutes = Math.floor(t / (1000 * 60));
-    t -= (minutes * (1000 * 60));
-    const seconds = Math.floor(t / 1000);
-    return [
-      hours.toString().padStart(2, "0"),
-      minutes.toString().padStart(2, "0"),
-      seconds.toString().padStart(2, "0")
-    ];
-  });
+  const niceTime = createMemo(() => toTimeString(elapsed()));
 
   const onCanvasConfirm = (markAsMine?: boolean) => {
     mouseDown = undefined;
@@ -171,6 +167,11 @@ const App: Component = () => {
     if (!mouseEvent || !c) {
       return;
     }
+    if (showScore()) {
+      setShowScore(false);
+      return;
+    }
+
     const MAP_WIDTH = size();
     const [x, y] = [mouseEvent.clientX, mouseEvent.clientY];
     mouseEvent = undefined;
@@ -236,13 +237,17 @@ const App: Component = () => {
       const revealed = map.cells.filter((c) => !c.isMine && c.isVisible).length;
       if ((mineCount+revealed) === map.cells.length) {
         gfx.winningMessage(map, c, "Winner!");
+        if (elapsed()) {
+          onAddGame?.(elapsed()!, mineCount, size());
+        }
+        requestIdleCallback(() => setShowScore(true));
         onGameEnd();
       }
     }
   };
 
   return (
-    <div class="h-[100vh] w-[100vw] flex flex-col gap-2 items-center overflow-hidden">
+    <div class="h-[100vh] w-[100vw] flex flex-col gap-2 items-center overflow-hidden relative">
       <div class="flex flex-col justify-center items-center mt-2">
         <div class="flex flex-row gap-2">
           <select class="bg-gray-700 p-3" value={size().toString()} onChange={(e) => setSize(parseInt(e.target.value))}>
@@ -251,12 +256,13 @@ const App: Component = () => {
             <option value="30">Large 30x30</option>
             <option value="50">HUGE 50x50</option>
           </select>
-          <select class="bg-gray-700 p-3" value={mineDif().toString()} onChange={(e) => { console.log(e.target.value); setMineDif(parseFloat(e.target.value)) }}>
+          <select class="bg-gray-700 p-3" value={mineDif().toString()} onChange={(e) => { setMineDif(parseFloat(e.target.value)) }}>
             <option value="0.1">Easy 10%</option>
             <option value="0.15">Medium 15%</option>
             <option value="0.2">Hard 20%</option>
             <option value="0.3">Extreme 30%</option>
           </select>
+          <span class="cursor-pointer underline content-center" onClick={() => setShowScore(true)}>scores</span>
         </div>
         <div ref={b} class="p-2 m-5 border rounded w-1/2 text-center cursor-pointer relative w-full">
           New game
@@ -265,11 +271,16 @@ const App: Component = () => {
       </div>
       <div class="flex flex-row gap-10">
         <div>Mines: {mines()}</div>
-        <div>Time: {niceTime().join(":")}</div>
+        <div>Time: {niceTime()}</div>
       </div>
       <div class="overflow-none">
         <canvas ref={c} class="" />
       </div>
+      <Show when={showScore()}>
+        <div class="absolute top-[50%] left-[50%] -translate-y-[50%] -translate-x-[50%] bg-blue-800 p-2 w-4/5 h-1/3 overflow-x-hidden overflow-y-auto">
+          <Score />
+        </div>
+      </Show>
     </div>
   );
 };
