@@ -75,7 +75,7 @@ const App: Component = () => {
       onGameEnd();
       gfx.scale = 1;
       gfx.offset = [0, 0];
-      gfx.drawStart(size(), c);
+      gfx.drawStart(size());
     }
   };
 
