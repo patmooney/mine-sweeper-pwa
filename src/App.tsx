@@ -12,6 +12,7 @@ const App: Component = () => {
   let newGameTime: number | undefined;
   let canvasTime: number | undefined;
   let mouseDown: [number, number] | undefined;
+  let touchDist: number | undefined;
   
   let gameTimer: number | undefined;
 
@@ -28,12 +29,12 @@ const App: Component = () => {
       gfx = new Renderer(c);
       confirmNewGame();
       c.addEventListener("touchstart", (e) => { e.preventDefault(); onCanvasTouchStart(e); });
-      c.addEventListener("touchmove", (e) => { e.preventDefault(); onCavasTouchMove(e); });
+      c.addEventListener("touchmove", (e) => { e.preventDefault(); onCanvasTouchMove(e); });
       c.addEventListener("touchend", (e) => { e.preventDefault(); onCanvasConfirm(); });
       c.addEventListener("mousedown", (e) => { e.preventDefault(); onCanvasMouseDown(e); });
       c.addEventListener("mousemove", (e) => { e.preventDefault(); onCanvasMouseMove(e); });
       c.addEventListener("mouseup", (e) => { e.preventDefault(); onCanvasConfirm(); });
-      c.addEventListener("wheel", (e) => { e.preventDefault(); onZoom(e); });
+      c.addEventListener("wheel", (e) => { e.preventDefault(); onMouseZoom(e); });
     }
     if (b) {
       b.addEventListener("mousedown", (e) => { e.preventDefault(); onNewGame(); });
@@ -41,9 +42,13 @@ const App: Component = () => {
     }
   });
 
-  const onZoom = (e: WheelEvent) => {
+  const onMouseZoom = (e: WheelEvent) => {
+    onZoom(e.deltaY);
+  };
+
+  const onZoom = (deltaY: number) => {
     if (gfx) {
-      const deltaNorm = - Math.max(-1, Math.min(1, e.deltaY));
+      const deltaNorm = - Math.max(-1, Math.min(1, deltaY));
       const deltaScale = 0.1 * deltaNorm;
       gfx.scale = Math.min(10, Math.max(1, gfx.scale + deltaScale));
       gfx.offset = [gfx.offset[0] - (RECT_WIDTH * deltaScale), gfx.offset[1] - (deltaScale * RECT_WIDTH)];
@@ -55,6 +60,7 @@ const App: Component = () => {
     b?.querySelector("div")?.classList.add("w-full", "duration-1000", "transition-[width]");
     newGameTime = setTimeout(confirmNewGame, 1000);
   };
+
   const confirmNewGame = () => {
     cancelNewGame();
     if (c) {
@@ -62,6 +68,7 @@ const App: Component = () => {
       gfx?.drawStart(size(), c);
     }
   };
+
   const cancelNewGame = () => {
     b?.querySelector("div")?.classList.remove("w-full", "duration-1000", "transition-[width]");
     clearTimeout(newGameTime);
@@ -98,7 +105,16 @@ const App: Component = () => {
     canvasTime = setTimeout(() => onCanvasConfirm(true), 500);
   };
 
-  const onCavasTouchMove = (e: TouchEvent) => {
+  const onCanvasTouchMove = (e: TouchEvent) => {
+    if (e.changedTouches.length > 1) {
+      const [t1, t2] = [e.changedTouches.item(0)!, e.changedTouches.item(1)!];
+      const dist = Math.sqrt(Math.pow(t1.clientX - t2.clientX, 2) + Math.pow(t1.clientY - t2.clientY, 2));
+      if (touchDist) {
+        onZoom(touchDist - dist);
+      }
+      touchDist = dist;
+      return;
+    }
     const item = e.changedTouches.item(0);
     if (item) {
       onCanvasInteractMove(item.clientX, item.clientY);
