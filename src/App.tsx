@@ -117,6 +117,10 @@ const App: Component = () => {
 
   const onCanvasTouchMove = (e: TouchEvent) => {
     if (e.changedTouches.length > 1) {
+      if (canvasTime) {
+        clearTimeout(canvasTime);
+        canvasTime = undefined;
+      }
       const [t1, t2] = [e.changedTouches.item(0)!, e.changedTouches.item(1)!];
       const dist = Math.sqrt(Math.pow(t1.clientX - t2.clientX, 2) + Math.pow(t1.clientY - t2.clientY, 2));
       if (touchDist) {
