@@ -22,8 +22,8 @@ export class Renderer {
 
     drawMap(showMines?: boolean) {
         this.ctx.reset();
-        this.ctx.scale(this.scale, this.scale);
         this.ctx.translate(this.offset[0], this.offset[1]);
+        this.ctx.scale(this.scale, this.scale);
         this.map?.cells.forEach((c, idx) => this.paintRect(idx, c, showMines));
     }
 

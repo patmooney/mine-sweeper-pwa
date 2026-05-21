@@ -6,7 +6,7 @@ const App: Component = () => {
   let c: HTMLCanvasElement | undefined;
   let b: HTMLDivElement | undefined;
 
-  let mouseEvent: MouseEvent | undefined;
+  let mouseEvent: MouseEvent | Touch | undefined;
   let map: Grid | undefined;
   let gfx: Renderer | undefined;
   let newGameTime: number | undefined;
@@ -27,8 +27,11 @@ const App: Component = () => {
       c.height = window.innerHeight * 0.85;
       gfx = new Renderer(c);
       confirmNewGame();
-      c.addEventListener("mousedown", (e) => { e.preventDefault(); onCanvasMouseDown(e); })
-      c.addEventListener("mousemove", (e) => { e.preventDefault(); onCanvasMouseMove(e); })
+      c.addEventListener("touchstart", (e) => { e.preventDefault(); onCanvasTouchStart(e); });
+      c.addEventListener("touchmove", (e) => { e.preventDefault(); onCavasTouchMove(e); });
+      c.addEventListener("touchend", (e) => { e.preventDefault(); onCanvasConfirm(); });
+      c.addEventListener("mousedown", (e) => { e.preventDefault(); onCanvasMouseDown(e); });
+      c.addEventListener("mousemove", (e) => { e.preventDefault(); onCanvasMouseMove(e); });
       c.addEventListener("mouseup", (e) => { e.preventDefault(); onCanvasConfirm(); });
       c.addEventListener("wheel", (e) => { e.preventDefault(); onZoom(e); });
     }
@@ -75,20 +78,43 @@ const App: Component = () => {
 
   const onCanvasMouseDown = (e: MouseEvent) => {
     mouseEvent = e;
+    onInteractStart(e.clientX, e.clientY);
+  }
+
+  const onCanvasTouchStart = (e: TouchEvent) => {
+    const item = e.touches.item(0);
+    if (item) {
+      mouseEvent = item;
+      onInteractStart(item.clientX, item.clientY);
+    }
+  };
+
+  const onInteractStart = (x: number, y: number) => {
     if (canvasTime) {
       clearTimeout(canvasTime);
       canvasTime = undefined;
     }
-    mouseDown = [e.clientX, e.clientY];
+    mouseDown = [x, y];
     canvasTime = setTimeout(() => onCanvasConfirm(true), 500);
   };
 
+  const onCavasTouchMove = (e: TouchEvent) => {
+    const item = e.changedTouches.item(0);
+    if (item) {
+      onCanvasInteractMove(item.clientX, item.clientY);
+    }
+  };
+
   const onCanvasMouseMove = (e: MouseEvent) => {
+    onCanvasInteractMove(e.clientX, e.clientY);
+  };
+
+  const onCanvasInteractMove = (x: number, y: number) => {
     if (!mouseDown || !gfx) {
       return;
     }
-    const dX = e.clientX - mouseDown[0];
-    const dY = e.clientY - mouseDown[1];
+    const dX = x - mouseDown[0];
+    const dY = y - mouseDown[1];
     if (canvasTime) {
       if (Math.abs(dX) > 20 || Math.abs(dY) > 20) {
         clearTimeout(canvasTime);
@@ -97,7 +123,8 @@ const App: Component = () => {
         return;
       }
     }
-    mouseDown = [e.clientX, e.clientY];
+    mouseDown = [x, y];
+    mouseEvent = undefined;
     gfx.offset = [gfx.offset[0] + (dX / gfx.scale), gfx.offset[1] + (dY / gfx.scale)];
     gfx.drawMap();
   };
