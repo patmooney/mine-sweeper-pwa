@@ -54,10 +54,10 @@ const App: Component = () => {
     onZoom(e.deltaY);
   };
 
-  const onZoom = (deltaY: number) => {
-    if (gfx) {
+  const onZoom = (deltaY: number, mult: number = 0.1) => {
+    if (gfx && map) {
       const deltaNorm = - Math.max(-1, Math.min(1, deltaY));
-      const deltaScale = 0.1 * deltaNorm;
+      const deltaScale = mult * deltaNorm;
       gfx.scale = Math.min(10, Math.max(1, gfx.scale + deltaScale));
       gfx.offset = [gfx.offset[0] - (RECT_WIDTH * deltaScale), gfx.offset[1] - (deltaScale * RECT_WIDTH)];
       gfx.drawMap();
@@ -71,9 +71,11 @@ const App: Component = () => {
 
   const confirmNewGame = () => {
     cancelNewGame();
-    if (c) {
+    if (c && gfx) {
       onGameEnd();
-      gfx?.drawStart(size(), c);
+      gfx.scale = 1;
+      gfx.offset = [0, 0];
+      gfx.drawStart(size(), c);
     }
   };
 
@@ -118,7 +120,7 @@ const App: Component = () => {
       const [t1, t2] = [e.changedTouches.item(0)!, e.changedTouches.item(1)!];
       const dist = Math.sqrt(Math.pow(t1.clientX - t2.clientX, 2) + Math.pow(t1.clientY - t2.clientY, 2));
       if (touchDist) {
-        onZoom(touchDist - dist);
+        onZoom(touchDist - dist, 0.02);
       }
       touchDist = dist;
       return;

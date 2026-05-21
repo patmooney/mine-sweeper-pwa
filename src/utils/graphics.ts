@@ -70,13 +70,11 @@ export class Renderer {
         }
     };
 
-    drawStart(width: number, c: HTMLCanvasElement) {
-        const ctx = c.getContext("2d");
-        if (!ctx) {
-            return;
-        }
+    drawStart(width: number) {
+        const ctx = this.ctx;
         const rW = RECT_WIDTH;
-        ctx.clearRect(0, 0, c.width, c.height);
+        ctx.reset();
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
         ctx.strokeStyle = "#778877";
         ctx.fillStyle = "#99aa99";
         for (let x = 0; x < width; x++) {
