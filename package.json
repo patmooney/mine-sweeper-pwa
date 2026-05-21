@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
-  "homepage": "https://patmooney.github.io/webgl-miner",
+  "homepage": "https://patmooney.github.io/mine-sweeper-pwa",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
